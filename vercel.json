@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/discord-data-gateway.js": {
+      "maxDuration": 30
+    }
+  }
+}
