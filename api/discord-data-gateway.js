@@ -8,19 +8,28 @@ function safeEqual(a,b){
   const A=Buffer.from(String(a||'')), B=Buffer.from(String(b||''));
   return A.length===B.length && crypto.timingSafeEqual(A,B);
 }
-function allowedEndpoint(endpoint){
+function allowedEndpoint(endpoint,method='GET'){
   try{
     const u=new URL(String(endpoint||''),'https://discord.invalid');
-    const p=u.pathname;
+    const p=u.pathname,m=String(method||'GET').toUpperCase();
     const ids=[STATE_CHANNEL_ID,STATE_THREAD_ID].filter(Boolean);
+
+    // Bootstrap/provisioning for a newly added TAYF bot.
+    if(m==='GET' && p==='/users/@me') return true;
+    if(m==='GET' && /^\/guilds\/\d+$/.test(p)) return true;
+    if((m==='GET'||m==='POST') && /^\/guilds\/\d+\/channels$/.test(p)) return true;
+    if((m==='GET'||m==='DELETE') && /^\/channels\/\d+$/.test(p)) return true;
+    if((m==='GET'||m==='POST') && /^\/channels\/\d+\/messages$/.test(p)) return true;
+
+    // Existing immutable state snapshot scope.
     if(!ids.length) return false;
     return ids.some(id => {
       const base='/channels/'+id;
       return p===base ||
         p===base+'/messages' ||
-        /^\/channels\/[^/]+\/messages\/\d+$/.test(p) && p.startsWith(base+'/messages/') ||
+        (/^\/channels\/[^/]+\/messages\/\d+$/.test(p) && p.startsWith(base+'/messages/')) ||
         p===base+'/pins' ||
-        /^\/channels\/[^/]+\/pins\/\d+$/.test(p) && p.startsWith(base+'/pins/') ||
+        (/^\/channels\/[^/]+\/pins\/\d+$/.test(p) && p.startsWith(base+'/pins/')) ||
         (id===STATE_CHANNEL_ID && p===base+'/threads');
     });
   }catch{return false}
@@ -47,7 +56,7 @@ module.exports = async function handler(req,res){
   const method=String(body.method||'GET').toUpperCase();
   if(!token) return res.status(400).json({error:'token required'});
   if(!['GET','POST','PATCH','PUT','DELETE'].includes(method)) return res.status(400).json({error:'method not allowed'});
-  if(!allowedEndpoint(endpoint)) return res.status(403).json({error:'endpoint not allowed'});
+  if(!allowedEndpoint(endpoint,method)) return res.status(403).json({error:'endpoint not allowed'});
 
   try{
     const headers={Authorization:'Bot '+token,'Content-Type':'application/json'};
