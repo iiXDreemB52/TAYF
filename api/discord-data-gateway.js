@@ -18,6 +18,7 @@ function allowedEndpoint(endpoint,method='GET'){
     if(m==='GET' && /^\/guilds\/\d+$/.test(p)) return true;
     if(['GET','POST'].includes(m) && /^\/guilds\/\d+\/channels$/.test(p)) return true;
     if(m==='GET' && /^\/guilds\/\d+\/threads\/active$/.test(p)) return true;
+    if(m==='GET' && /^\/guilds\/\d+\/members$/.test(p)) return true;
 
     if(['GET','PATCH','DELETE'].includes(m) && /^\/channels\/\d+$/.test(p)) return true;
     if(['GET','POST'].includes(m) && /^\/channels\/\d+\/messages$/.test(p)) return true;
