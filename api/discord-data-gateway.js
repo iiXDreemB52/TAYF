@@ -12,26 +12,22 @@ function allowedEndpoint(endpoint,method='GET'){
   try{
     const u=new URL(String(endpoint||''),'https://discord.invalid');
     const p=u.pathname,m=String(method||'GET').toUpperCase();
-    const ids=[STATE_CHANNEL_ID,STATE_THREAD_ID].filter(Boolean);
 
-    // Bootstrap/provisioning for a newly added TAYF bot.
+    // TAYF Discord Data / bot provisioning routes only.
     if(m==='GET' && p==='/users/@me') return true;
     if(m==='GET' && /^\/guilds\/\d+$/.test(p)) return true;
-    if((m==='GET'||m==='POST') && /^\/guilds\/\d+\/channels$/.test(p)) return true;
-    if((m==='GET'||m==='DELETE') && /^\/channels\/\d+$/.test(p)) return true;
-    if((m==='GET'||m==='POST') && /^\/channels\/\d+\/messages$/.test(p)) return true;
+    if(['GET','POST'].includes(m) && /^\/guilds\/\d+\/channels$/.test(p)) return true;
+    if(m==='GET' && /^\/guilds\/\d+\/threads\/active$/.test(p)) return true;
 
-    // Existing immutable state snapshot scope.
-    if(!ids.length) return false;
-    return ids.some(id => {
-      const base='/channels/'+id;
-      return p===base ||
-        p===base+'/messages' ||
-        (/^\/channels\/[^/]+\/messages\/\d+$/.test(p) && p.startsWith(base+'/messages/')) ||
-        p===base+'/pins' ||
-        (/^\/channels\/[^/]+\/pins\/\d+$/.test(p) && p.startsWith(base+'/pins/')) ||
-        (id===STATE_CHANNEL_ID && p===base+'/threads');
-    });
+    if(['GET','PATCH','DELETE'].includes(m) && /^\/channels\/\d+$/.test(p)) return true;
+    if(['GET','POST'].includes(m) && /^\/channels\/\d+\/messages$/.test(p)) return true;
+    if(['GET','PATCH','DELETE'].includes(m) && /^\/channels\/\d+\/messages\/\d+$/.test(p)) return true;
+    if(m==='GET' && /^\/channels\/\d+\/pins$/.test(p)) return true;
+    if(['PUT','DELETE'].includes(m) && /^\/channels\/\d+\/pins\/\d+$/.test(p)) return true;
+    if(m==='POST' && /^\/channels\/\d+\/threads$/.test(p)) return true;
+    if(m==='GET' && /^\/channels\/\d+\/threads\/archived\/public$/.test(p)) return true;
+
+    return false;
   }catch{return false}
 }
 async function readBody(req){
@@ -68,8 +64,8 @@ module.exports = async function handler(req,res){
     });
     const text=await upstream.text();
     res.status(upstream.status);
-    const retry=upstream.headers.get('retry-after');
-    if(retry) res.setHeader('Retry-After',retry);
+    const forwardHeaders=['retry-after','x-ratelimit-scope','x-ratelimit-global','x-ratelimit-limit','x-ratelimit-remaining','x-ratelimit-reset-after','x-ratelimit-bucket','cf-ray'];
+    for(const h of forwardHeaders){const v=upstream.headers.get(h);if(v)res.setHeader(h,v)}
     const contentType=upstream.headers.get('content-type')||'';
     if(contentType.includes('application/json')){
       try{return res.json(text?JSON.parse(text):null)}catch{}
